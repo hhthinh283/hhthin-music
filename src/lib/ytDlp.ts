@@ -48,17 +48,26 @@ export async function getYtDlpPath(): Promise<string> {
   const tmpBin = path.join("/tmp", "yt-dlp");
 
   if (fs.existsSync(tmpBin)) {
-    return tmpBin;
+    try {
+      const stat = fs.statSync(tmpBin);
+      // yt-dlp_linux standalone binary is > 10MB. If < 10MB, it is the old python zipapp script
+      if (stat.size > 10 * 1024 * 1024) {
+        return tmpBin;
+      }
+      fs.unlinkSync(tmpBin);
+    } catch {
+      // ignore
+    }
   }
 
   try {
-    console.log("Downloading yt-dlp Linux binary for Vercel Serverless...");
-    const res = await fetch("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp");
+    console.log("Downloading yt-dlp_linux standalone binary for Vercel Serverless...");
+    const res = await fetch("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux");
     if (res.ok) {
       const arrayBuf = await res.arrayBuffer();
       fs.writeFileSync(tmpBin, Buffer.from(arrayBuf));
       fs.chmodSync(tmpBin, 0o755);
-      console.log("yt-dlp Linux binary ready at /tmp/yt-dlp");
+      console.log("yt-dlp_linux standalone binary ready at /tmp/yt-dlp");
       return tmpBin;
     }
   } catch (err) {
