@@ -6,34 +6,14 @@ import { promisify } from "util";
 export const execFileAsync = promisify(execFile);
 
 export function getDownloadsDir(): string {
-  // On Vercel serverless or production read-only filesystem, use /tmp/downloads
-  const isVercel = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
-  
-  if (isVercel) {
-    const tmpDir = path.join("/tmp", "downloads");
-    if (!fs.existsSync(tmpDir)) {
-      try {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      } catch {
-        // ignore
-      }
-    }
-    return tmpDir;
-  }
-
   const downloadsDir = path.join(process.cwd(), "public", "downloads");
   if (!fs.existsSync(downloadsDir)) {
     try {
       fs.mkdirSync(downloadsDir, { recursive: true });
-    } catch {
-      const tmpDir = path.join("/tmp", "downloads");
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
-      return tmpDir;
+    } catch (err) {
+      console.error("Error creating public/downloads directory:", err);
     }
   }
-
   return downloadsDir;
 }
 
