@@ -3,6 +3,9 @@ import path from "path";
 import fs from "fs";
 import { execFileAsync, getYtDlpPath, getDownloadsDir } from "@/lib/ytDlp";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -19,9 +22,9 @@ export async function POST(request: Request) {
     const downloadsDir = getDownloadsDir();
 
     const rawTitle = title || "Audio_Track";
-    // Preserve full Vietnamese & Unicode characters, strip illegal OS filename characters (\ / : * ? " < > |)
+    // Preserve full Vietnamese & Unicode characters, strip illegal OS filename characters (\ / : * ? " < > | ｜ ／ ： ？)
     let cleanFolderTitle = rawTitle
-      .replace(/[\\/:*?"<>|\r\n\t]/g, " ")
+      .replace(/[\\/:*?"<>|\r\n\t｜／：？"＜＞]/g, " ")
       .replace(/\s+/g, " ")
       .trim() || "Audio_Track";
 
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
     try {
       await execFileAsync(
         ytDlpPath,
-        ["-o", outputTemplate, "-f", "bestaudio", "--no-playlist", url],
+        ["-o", outputTemplate, "-f", "ba/ba*", "--no-playlist", "--no-warnings", url],
         { encoding: "utf-8" }
       );
     } catch (err: any) {
@@ -75,12 +78,8 @@ export async function POST(request: Request) {
       (f) =>
         !f.startsWith(".") &&
         f !== "cover.jpg" &&
-        (f.endsWith(".mp3") ||
-          f.endsWith(".m4a") ||
-          f.endsWith(".webm") ||
-          f.endsWith(".flac") ||
-          f.endsWith(".wav") ||
-          f.endsWith(".opus"))
+        !f.endsWith(".part") &&
+        !f.endsWith(".ytdl")
     );
 
     if (actualAudioFile) {

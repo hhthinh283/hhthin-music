@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { execFileAsync, getYtDlpPath } from "@/lib/ytDlp";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export interface DownloadOption {
   id: string;
   format: "mp3" | "m4a" | "flac" | "wav";
