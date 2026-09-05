@@ -1,69 +1,70 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import React, { useState } from "react";
+import Header from "@/components/Header";
+import HeroSearch from "@/components/HeroSearch";
+import MediaResultCard from "@/components/MediaResultCard";
+import PlaylistCard from "@/components/PlaylistCard";
+import BatchDownloader from "@/components/BatchDownloader";
+import LibraryPlayer from "@/components/LibraryPlayer";
+import GlobalBottomBar from "@/components/GlobalBottomBar";
+import { ExtractResponse } from "@/app/api/extract/route";
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<"downloader" | "library">("downloader");
+  const [resultData, setResultData] = useState<ExtractResponse["data"] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<"single" | "batch">("single");
+
+  const handleSearchResult = (data: NonNullable<ExtractResponse["data"]>) => {
+    setResultData(data);
+    setTimeout(() => {
+      window.scrollTo({
+        top: 380,
+        behavior: "smooth",
+      });
+    }, 100);
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+    <>
+      {/* Navigation Header */}
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* Main Content Area */}
+      <main style={{ paddingBottom: "10rem" }}>
+        {activeTab === "downloader" ? (
+          <>
+            {/* Hero Section with Search Bar */}
+            <HeroSearch
+              onSearchResult={handleSearchResult}
+              isLoading={isLoading}
+              setIsLoading={setIsLoading}
+              mode={mode}
+              setMode={setMode}
             />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+            {/* Single Link Track Result Card */}
+            {mode === "single" && resultData && (
+              <>
+                <MediaResultCard data={resultData} />
+                {resultData.playlist && (
+                  <PlaylistCard playlist={resultData.playlist} />
+                )}
+              </>
+            )}
+
+            {/* Batch Multi-link Downloader */}
+            {mode === "batch" && <BatchDownloader />}
+          </>
+        ) : (
+          /* Music Library Player Page */
+          <LibraryPlayer onSwitchToDownloadTab={() => setActiveTab("downloader")} />
+        )}
       </main>
-    </div>
+
+      {/* Persistent Audio Player Bar across tab switching */}
+      <GlobalBottomBar onOpenLibrary={() => setActiveTab("library")} />
+    </>
   );
 }
