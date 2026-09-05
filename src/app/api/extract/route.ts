@@ -64,6 +64,39 @@ function formatDuration(seconds: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
+function getBestThumbnailUrl(rawUrl: string, thumbnails?: any[], ytId?: string): string {
+  // If thumbnails array from yt-dlp is present, sort by width * height or preference
+  if (Array.isArray(thumbnails) && thumbnails.length > 0) {
+    const valid = thumbnails.filter((t) => t && typeof t.url === "string" && t.url.startsWith("http"));
+    if (valid.length > 0) {
+      valid.sort((a, b) => {
+        const areaA = (a.width || 0) * (a.height || 0) || (a.preference || 0);
+        const areaB = (b.width || 0) * (b.height || 0) || (b.preference || 0);
+        return areaB - areaA;
+      });
+      if (valid[0]?.url) {
+        if (valid[0].url.includes("sndcdn.com")) {
+          return valid[0].url.replace(/-large\./, "-t500x500.").replace(/-badge\./, "-t500x500.");
+        }
+        return valid[0].url;
+      }
+    }
+  }
+
+  // YouTube high quality 1280x720 HD MaxRes
+  const matchYt = ytId || rawUrl.match(/(?:vi\/|v=|\/v\/|youtu\.be\/|\/embed\/)([a-zA-Z0-9_-]{11})/)?.[1];
+  if (matchYt) {
+    return `https://i.ytimg.com/vi/${matchYt}/maxresdefault.jpg`;
+  }
+
+  // SoundCloud 500x500 master artwork
+  if (rawUrl.includes("sndcdn.com")) {
+    return rawUrl.replace(/-large\./, "-t500x500.").replace(/-badge\./, "-t500x500.");
+  }
+
+  return rawUrl;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -144,7 +177,7 @@ export async function POST(request: Request) {
               const trackArtist = itemJson.uploader || itemJson.channel || itemJson.artist || "Nghệ sĩ";
               const trackDurationSec = Math.round(itemJson.duration || 210);
               const trackUrl = itemJson.url || (itemJson.id ? `https://www.youtube.com/watch?v=${itemJson.id}` : targetUrl);
-              const trackThumb = itemJson.thumbnails?.[0]?.url || (itemJson.id ? `https://img.youtube.com/vi/${itemJson.id}/hqdefault.jpg` : thumbnail);
+              const trackThumb = getBestThumbnailUrl(trackUrl, itemJson.thumbnails, itemJson.id) || thumbnail;
 
               parsedItems.push({
                 id: trackId,
@@ -201,7 +234,7 @@ export async function POST(request: Request) {
           title = metadata.title || metadata.fulltitle || title;
           artist = metadata.uploader || metadata.channel || metadata.artist || artist;
           durationSeconds = Math.round(metadata.duration || durationSeconds);
-          thumbnail = metadata.thumbnail || thumbnail;
+          thumbnail = getBestThumbnailUrl(targetUrl, metadata.thumbnails, metadata.id) || metadata.thumbnail || thumbnail;
           if (metadata.view_count) {
             const v = metadata.view_count;
             views = v > 1000000 ? `${(v / 1000000).toFixed(1)}M` : `${Math.round(v / 1000)}K`;
@@ -217,7 +250,7 @@ export async function POST(request: Request) {
               const data = await oembedRes.json();
               title = data.title;
               artist = data.author_name;
-              thumbnail = data.thumbnail_url;
+              thumbnail = getBestThumbnailUrl(targetUrl, undefined) || data.thumbnail_url || thumbnail;
             }
           } catch {
             // ignore

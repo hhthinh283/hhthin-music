@@ -14,6 +14,7 @@ import {
   Check,
   Disc,
   FolderCheck,
+  Image as ImageIcon,
 } from "lucide-react";
 import { ExtractResponse, DownloadOption } from "@/app/api/extract/route";
 import { useAudio } from "@/context/AudioContext";
@@ -263,6 +264,30 @@ export default function MediaResultCard({ data }: MediaResultCardProps) {
             >
               {isCopied ? <Check size={18} color="#10b981" /> : <Share2 size={18} />}
             </button>
+
+            {data.thumbnail && (
+              <a
+                href={data.thumbnail}
+                target="_blank"
+                rel="noreferrer"
+                download="cover.jpg"
+                className="btn-paste"
+                title="Tải ảnh bìa HD chất lượng cao"
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  textDecoration: "none",
+                  color: "#a5b4fc",
+                  borderColor: "rgba(99, 102, 241, 0.35)",
+                }}
+              >
+                <ImageIcon size={18} />
+                <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Ảnh HD</span>
+              </a>
+            )}
           </div>
 
           {/* Notification when file is saved silently into public/downloads */}

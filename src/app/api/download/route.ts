@@ -39,16 +39,60 @@ export async function POST(request: Request) {
       fs.mkdirSync(trackDir, { recursive: true });
     }
 
-    // Save thumbnail image as cover.jpg inside the track folder
+    // Save highest quality thumbnail image as cover.jpg inside the track folder
     let hasThumb = false;
     if (thumbnail && typeof thumbnail === "string" && thumbnail.startsWith("http")) {
       try {
         const thumbFilePath = path.join(/*turbopackIgnore: true*/ trackDir, "cover.jpg");
-        const thumbRes = await fetch(thumbnail);
-        if (thumbRes.ok) {
-          const arrayBuf = await thumbRes.arrayBuffer();
-          fs.writeFileSync(thumbFilePath, Buffer.from(arrayBuf));
-          hasThumb = true;
+
+        // Candidate URLs prioritized by maximum resolution
+        const candidateUrls: string[] = [];
+
+        // Check if YouTube link / thumbnail
+        const ytIdMatch =
+          thumbnail.match(/\/vi\/([a-zA-Z0-9_-]{11})\//) ||
+          url.match(/(?:v=|\/v\/|youtu\.be\/|\/embed\/)([a-zA-Z0-9_-]{11})/);
+
+        if (ytIdMatch && ytIdMatch[1]) {
+          const vid = ytIdMatch[1];
+          // 1280x720 HD MaxRes
+          candidateUrls.push(`https://i.ytimg.com/vi/${vid}/maxresdefault.jpg`);
+          // 640x480 Standard Def
+          candidateUrls.push(`https://i.ytimg.com/vi/${vid}/sddefault.jpg`);
+          // 480x360 High Quality
+          candidateUrls.push(`https://i.ytimg.com/vi/${vid}/hqdefault.jpg`);
+        }
+
+        // SoundCloud 500x500 master artwork
+        if (thumbnail.includes("sndcdn.com")) {
+          candidateUrls.push(
+            thumbnail.replace(/-large\./, "-t500x500.").replace(/-badge\./, "-t500x500.")
+          );
+          candidateUrls.push(thumbnail.replace(/-large\./, "-original."));
+        }
+
+        candidateUrls.push(thumbnail);
+
+        // Try downloading the highest resolution available (checking byteLength > 2000 to prevent 1x1 error placeholders)
+        for (const candidate of candidateUrls) {
+          try {
+            const thumbRes = await fetch(candidate, {
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              },
+            });
+            if (thumbRes.ok) {
+              const arrayBuf = await thumbRes.arrayBuffer();
+              if (arrayBuf.byteLength > 2000) {
+                fs.writeFileSync(thumbFilePath, Buffer.from(arrayBuf));
+                hasThumb = true;
+                break;
+              }
+            }
+          } catch {
+            // try next candidate
+          }
         }
       } catch (err) {
         console.error("Lỗi tải ảnh bìa bài hát vào thư mục:", err);
