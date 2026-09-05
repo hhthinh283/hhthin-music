@@ -14,100 +14,116 @@ export interface LibraryTrack {
   format: string;
 }
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
-    const downloadsDir = getDownloadsDir();
-
-    if (!fs.existsSync(downloadsDir)) {
-      return NextResponse.json({ success: true, tracks: [] });
+    const primaryDir = getDownloadsDir();
+    const dirsToScan = [primaryDir];
+    
+    // Also scan /tmp/downloads if Vercel serverless saved any runtime tracks there
+    const tmpDir = path.join("/tmp", "downloads");
+    if (tmpDir !== primaryDir && fs.existsSync(tmpDir)) {
+      dirsToScan.push(tmpDir);
     }
 
-    const entries = fs.readdirSync(downloadsDir);
     const tracks: LibraryTrack[] = [];
+    const seenTitles = new Set<string>();
 
-    for (let idx = 0; idx < entries.length; idx++) {
-      const entryName = entries[idx];
-      if (entryName.startsWith(".")) continue;
+    for (const dir of dirsToScan) {
+      if (!fs.existsSync(dir)) continue;
 
-      const entryPath = path.join(/*turbopackIgnore: true*/ downloadsDir, entryName);
-      const stat = fs.statSync(entryPath);
+      const entries = fs.readdirSync(dir);
+      for (let idx = 0; idx < entries.length; idx++) {
+        const entryName = entries[idx];
+        if (entryName.startsWith(".") || seenTitles.has(entryName)) continue;
 
-      if (stat.isDirectory()) {
-        // Track stored in dedicated folder: public/downloads/[entryName]/
-        const subFiles = fs.readdirSync(entryPath);
-        const audioFile = subFiles.find(
-          (f) =>
-            !f.startsWith(".") &&
-            (f.endsWith(".mp3") ||
-              f.endsWith(".m4a") ||
-              f.endsWith(".flac") ||
-              f.endsWith(".wav") ||
-              f.endsWith(".webm"))
-        );
+        const entryPath = path.join(/*turbopackIgnore: true*/ dir, entryName);
+        let stat;
+        try {
+          stat = fs.statSync(entryPath);
+        } catch {
+          continue;
+        }
 
-        if (audioFile) {
-          const audioPath = path.join(/*turbopackIgnore: true*/ entryPath, audioFile);
-          const audioStat = fs.statSync(audioPath);
-          const sizeMB = (audioStat.size / (1024 * 1024)).toFixed(1) + " MB";
-          const ext = path.extname(audioFile).slice(1);
-
-          // Find cover image inside track folder
-          const imgFile = subFiles.find(
+        if (stat.isDirectory()) {
+          // Track stored in dedicated folder: public/downloads/[entryName]/
+          const subFiles = fs.readdirSync(entryPath);
+          const audioFile = subFiles.find(
             (f) =>
               !f.startsWith(".") &&
-              (f.endsWith(".jpg") ||
-                f.endsWith(".jpeg") ||
-                f.endsWith(".png") ||
-                f.endsWith(".webp"))
+              f !== "cover.jpg" &&
+              !f.endsWith(".part") &&
+              !f.endsWith(".ytdl")
           );
 
-          const thumbnail = imgFile
-            ? `/downloads/${encodeURIComponent(entryName)}/${encodeURIComponent(imgFile)}`
-            : "";
+          if (audioFile) {
+            seenTitles.add(entryName);
+            const audioPath = path.join(/*turbopackIgnore: true*/ entryPath, audioFile);
+            const audioStat = fs.statSync(audioPath);
+            const sizeMB = (audioStat.size / (1024 * 1024)).toFixed(1) + " MB";
+            const ext = path.extname(audioFile).slice(1) || "mp3";
+
+            // Find cover image inside track folder
+            const imgFile = subFiles.find(
+              (f) =>
+                !f.startsWith(".") &&
+                (f.endsWith(".jpg") ||
+                  f.endsWith(".jpeg") ||
+                  f.endsWith(".png") ||
+                  f.endsWith(".webp"))
+            );
+
+            const thumbnail = imgFile
+              ? `/downloads/${encodeURIComponent(entryName)}/${encodeURIComponent(imgFile)}`
+              : "";
+
+            tracks.push({
+              id: `lib-folder-${idx}-${audioStat.mtimeMs}`,
+              fileName: entryName, // Directory name for deletion
+              title: entryName,
+              thumbnail,
+              url: `/downloads/${encodeURIComponent(entryName)}/${encodeURIComponent(audioFile)}`,
+              sizeMB,
+              updatedAt: audioStat.mtime.toLocaleDateString("vi-VN"),
+              format: ext.toUpperCase(),
+            });
+          }
+        } else if (
+          entryName.endsWith(".mp3") ||
+          entryName.endsWith(".m4a") ||
+          entryName.endsWith(".flac") ||
+          entryName.endsWith(".wav") ||
+          entryName.endsWith(".webm") ||
+          entryName.endsWith(".mp4") ||
+          entryName.endsWith(".opus")
+        ) {
+          seenTitles.add(entryName);
+          const sizeMB = (stat.size / (1024 * 1024)).toFixed(1) + " MB";
+          const ext = path.extname(entryName).slice(1);
+          const title = entryName.replace(/_\d+kbps\.[a-z0-9]+$/i, "").replace(/\.[a-z0-9]+$/i, "");
+          const baseName = entryName.replace(/\.[a-z0-9]+$/i, "");
+
+          let thumbnail = "";
+          const potentialThumbs = [`${baseName}.jpg`, `${baseName}.png`, `${baseName}.webp`, `${baseName}.jpeg`];
+          for (const imgName of potentialThumbs) {
+            if (fs.existsSync(path.join(dir, imgName))) {
+              thumbnail = `/downloads/${encodeURIComponent(imgName)}`;
+              break;
+            }
+          }
 
           tracks.push({
-            id: `lib-folder-${idx}-${audioStat.mtimeMs}`,
-            fileName: entryName, // Directory name for deletion
-            title: entryName,
+            id: `lib-file-${idx}-${stat.mtimeMs}`,
+            fileName: entryName,
+            title,
             thumbnail,
-            url: `/downloads/${encodeURIComponent(entryName)}/${encodeURIComponent(audioFile)}`,
+            url: `/downloads/${encodeURIComponent(entryName)}`,
             sizeMB,
-            updatedAt: audioStat.mtime.toLocaleDateString("vi-VN"),
+            updatedAt: stat.mtime.toLocaleDateString("vi-VN"),
             format: ext.toUpperCase(),
           });
         }
-      } else if (
-        entryName.endsWith(".mp3") ||
-        entryName.endsWith(".m4a") ||
-        entryName.endsWith(".flac") ||
-        entryName.endsWith(".wav") ||
-        entryName.endsWith(".webm")
-      ) {
-        // Backwards compatibility for standalone flat files
-        const sizeMB = (stat.size / (1024 * 1024)).toFixed(1) + " MB";
-        const ext = path.extname(entryName).slice(1);
-        const title = entryName.replace(/_\d+kbps\.[a-z0-9]+$/i, "").replace(/\.[a-z0-9]+$/i, "");
-        const baseName = entryName.replace(/\.[a-z0-9]+$/i, "");
-
-        let thumbnail = "";
-        const potentialThumbs = [`${baseName}.jpg`, `${baseName}.png`, `${baseName}.webp`, `${baseName}.jpeg`];
-        for (const imgName of potentialThumbs) {
-          if (fs.existsSync(path.join(downloadsDir, imgName))) {
-            thumbnail = `/downloads/${encodeURIComponent(imgName)}`;
-            break;
-          }
-        }
-
-        tracks.push({
-          id: `lib-file-${idx}-${stat.mtimeMs}`,
-          fileName: entryName,
-          title,
-          thumbnail,
-          url: `/downloads/${encodeURIComponent(entryName)}`,
-          sizeMB,
-          updatedAt: stat.mtime.toLocaleDateString("vi-VN"),
-          format: ext.toUpperCase(),
-        });
       }
     }
 
