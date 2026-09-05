@@ -47,14 +47,15 @@ export async function GET() {
         }
 
         if (stat.isDirectory()) {
-          // Track stored in dedicated folder: public/downloads/[entryName]/
+          const AUDIO_EXTS = [".mp3", ".m4a", ".webm", ".opus", ".flac", ".wav", ".aac", ".ogg"];
           const subFiles = fs.readdirSync(entryPath);
           const audioFile = subFiles.find(
             (f) =>
               !f.startsWith(".") &&
               f !== "cover.jpg" &&
               !f.endsWith(".part") &&
-              !f.endsWith(".ytdl")
+              !f.endsWith(".ytdl") &&
+              AUDIO_EXTS.includes(path.extname(f).toLowerCase())
           );
 
           if (audioFile) {
@@ -95,8 +96,9 @@ export async function GET() {
           entryName.endsWith(".flac") ||
           entryName.endsWith(".wav") ||
           entryName.endsWith(".webm") ||
-          entryName.endsWith(".mp4") ||
-          entryName.endsWith(".opus")
+          entryName.endsWith(".opus") ||
+          entryName.endsWith(".ogg") ||
+          entryName.endsWith(".aac")
         ) {
           seenTitles.add(entryName);
           const sizeMB = (stat.size / (1024 * 1024)).toFixed(1) + " MB";

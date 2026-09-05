@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
-import { execFileAsync, getYtDlpPath, getDownloadsDir } from "@/lib/ytDlp";
+import { execFileAsync, getYtDlpPath, getDownloadsDir, getFfmpegLocation } from "@/lib/ytDlp";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -102,38 +102,98 @@ export async function POST(request: Request) {
     // Use fixed output template 'audio.%(ext)s' to prevent yt-dlp percent % template parsing errors
     const outputTemplate = path.join(/*turbopackIgnore: true*/ trackDir, "audio.%(ext)s");
 
+    const targetFormat =
+      format && ["mp3", "m4a", "flac", "wav"].includes(format.toLowerCase())
+        ? format.toLowerCase()
+        : "mp3";
+
+    const ffmpegLoc = getFfmpegLocation();
+    const ytArgs: string[] = [
+      "-o",
+      outputTemplate,
+      "--no-playlist",
+      "--no-warnings",
+    ];
+
+    if (ffmpegLoc) {
+      ytArgs.push("--ffmpeg-location", ffmpegLoc);
+      ytArgs.push("-x"); // Extract audio only, discarding all video streams
+      ytArgs.push("--audio-format", targetFormat);
+      ytArgs.push("--audio-quality", "0"); // 0 = best VBR quality (~250-320kbps)
+      // Strictly audio-only format selector: enforces vcodec=none
+      ytArgs.push("-f", "bestaudio[vcodec=none]/ba[vcodec=none]/bestaudio/ba");
+    } else {
+      // Without ffmpeg, strictly select audio stream with vcodec=none (audio only, no video fallback)
+      ytArgs.push("-f", "bestaudio[vcodec=none]/ba[vcodec=none]/bestaudio/ba");
+    }
+
+    ytArgs.push(url);
+
     let downloadError: any = null;
     try {
-      await execFileAsync(
-        ytDlpPath,
-        [
-          "--extractor-args",
-          "youtube:player_client=ios,android,mweb",
-          "-o",
-          outputTemplate,
-          "-f",
-          "ba/ba*",
-          "--no-playlist",
-          "--no-warnings",
-          url,
-        ],
-        { encoding: "utf-8" }
-      );
+      await execFileAsync(ytDlpPath, ytArgs, { encoding: "utf-8" });
     } catch (err: any) {
       console.warn("yt-dlp download execution warning:", err?.message || err);
       downloadError = err;
     }
 
-    // Dynamically check if the audio file exists inside the track folder
-    const downloadedFiles = fs.existsSync(trackDir)
-      ? fs.readdirSync(trackDir)
-      : [];
-    const actualAudioFile = downloadedFiles.find(
+    // Anti-Video Guard: check if any video container was mistakenly downloaded
+    const VALID_AUDIO_EXTS = [".mp3", ".m4a", ".webm", ".opus", ".flac", ".wav", ".aac", ".ogg"];
+    const VIDEO_EXTS = [".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv"];
+
+    const currentFiles = fs.existsSync(trackDir) ? fs.readdirSync(trackDir) : [];
+
+    for (const file of currentFiles) {
+      const ext = path.extname(file).toLowerCase();
+      if (VIDEO_EXTS.includes(ext)) {
+        const fullVidPath = path.join(trackDir, file);
+        if (ffmpegLoc) {
+          try {
+            const ffmpegBin = path.join(
+              ffmpegLoc,
+              process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
+            );
+            const convertedAudioPath = path.join(trackDir, `audio.${targetFormat}`);
+            // Strip video completely (-vn) and export pure audio stream
+            await execFileAsync(ffmpegBin, [
+              "-i",
+              fullVidPath,
+              "-vn",
+              "-c:a",
+              targetFormat === "mp3" ? "libmp3lame" : "copy",
+              "-q:a",
+              "2",
+              "-y",
+              convertedAudioPath,
+            ]);
+            // Remove video file immediately after audio extraction
+            if (fs.existsSync(convertedAudioPath) && fs.statSync(convertedAudioPath).size > 0) {
+              fs.unlinkSync(fullVidPath);
+            }
+          } catch (e) {
+            console.error("Failed to strip video stream:", e);
+            try {
+              fs.unlinkSync(fullVidPath);
+            } catch {}
+          }
+        } else {
+          // If ffmpeg is not available, delete any video file immediately
+          try {
+            fs.unlinkSync(fullVidPath);
+          } catch {}
+        }
+      }
+    }
+
+    // Dynamically check if a valid pure audio file exists inside the track folder
+    const postFiles = fs.existsSync(trackDir) ? fs.readdirSync(trackDir) : [];
+    const actualAudioFile = postFiles.find(
       (f) =>
         !f.startsWith(".") &&
         f !== "cover.jpg" &&
         !f.endsWith(".part") &&
-        !f.endsWith(".ytdl")
+        !f.endsWith(".ytdl") &&
+        VALID_AUDIO_EXTS.includes(path.extname(f).toLowerCase())
     );
 
     if (actualAudioFile) {

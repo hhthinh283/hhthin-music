@@ -56,3 +56,46 @@ export async function getYtDlpPath(): Promise<string> {
 
   return "yt-dlp";
 }
+
+export function getFfmpegLocation(): string | null {
+  if (process.platform === "win32") {
+    // 1. Check project local bin/
+    const binDir = path.join(process.cwd(), "bin");
+    if (fs.existsSync(path.join(binDir, "ffmpeg.exe"))) {
+      return binDir;
+    }
+
+    // 2. Check static_ffmpeg from Python packages if installed
+    const appData =
+      process.env.LOCALAPPDATA ||
+      (process.env.USERPROFILE
+        ? path.join(process.env.USERPROFILE, "AppData", "Local")
+        : "");
+
+    if (appData) {
+      const pythonStaticFfmpeg = path.join(
+        appData,
+        "Packages",
+        "PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0",
+        "LocalCache",
+        "local-packages",
+        "Python313",
+        "site-packages",
+        "static_ffmpeg",
+        "bin",
+        "win32"
+      );
+      if (fs.existsSync(path.join(pythonStaticFfmpeg, "ffmpeg.exe"))) {
+        return pythonStaticFfmpeg;
+      }
+
+      // Check CapCut ffmpeg
+      const capcutDir = path.join(appData, "CapCut", "Apps", "9.3.0.3970");
+      if (fs.existsSync(path.join(capcutDir, "ffmpeg.exe"))) {
+        return capcutDir;
+      }
+    }
+  }
+
+  return null;
+}
