@@ -68,7 +68,9 @@ export async function POST(request: Request) {
     }
 
     // Dynamically check if the audio file exists inside the track folder
-    const downloadedFiles = fs.existsSync(trackDir) ? fs.readdirSync(trackDir) : [];
+    const downloadedFiles = fs.existsSync(trackDir)
+      ? fs.readdirSync(trackDir)
+      : [];
     const actualAudioFile = downloadedFiles.find(
       (f) =>
         !f.startsWith(".") &&

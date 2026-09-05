@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingExcludes: {
+    "*": ["public/downloads/**", "./public/downloads/**", "public/downloads"],
+  },
 };
 
 export default nextConfig;
+
