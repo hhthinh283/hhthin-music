@@ -13,10 +13,12 @@ export async function GET(request: Request) {
   try {
     const ytDlpPath = await getYtDlpPath();
     const child = spawn(ytDlpPath, [
+      "--extractor-args",
+      "youtube:player_client=ios,android,mweb",
       "-o",
       "-",
       "-f",
-      "bestaudio",
+      "ba/ba*",
       "--no-playlist",
       targetUrl,
     ]);

@@ -122,7 +122,13 @@ export async function POST(request: Request) {
       try {
         const { stdout: playlistStdout } = await execFileAsync(
           ytDlpPath,
-          ["--flat-playlist", "-j", targetUrl],
+          [
+            "--extractor-args",
+            "youtube:player_client=ios,android,mweb",
+            "--flat-playlist",
+            "-j",
+            targetUrl,
+          ],
           { encoding: "utf-8" }
         );
 
@@ -180,7 +186,13 @@ export async function POST(request: Request) {
       try {
         const { stdout } = await execFileAsync(
           ytDlpPath,
-          ["-j", "--no-playlist", targetUrl],
+          [
+            "--extractor-args",
+            "youtube:player_client=ios,android,mweb",
+            "-j",
+            "--no-playlist",
+            targetUrl,
+          ],
           { encoding: "utf-8" }
         );
 

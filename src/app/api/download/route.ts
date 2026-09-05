@@ -62,7 +62,17 @@ export async function POST(request: Request) {
     try {
       await execFileAsync(
         ytDlpPath,
-        ["-o", outputTemplate, "-f", "ba/ba*", "--no-playlist", "--no-warnings", url],
+        [
+          "--extractor-args",
+          "youtube:player_client=ios,android,mweb",
+          "-o",
+          outputTemplate,
+          "-f",
+          "ba/ba*",
+          "--no-playlist",
+          "--no-warnings",
+          url,
+        ],
         { encoding: "utf-8" }
       );
     } catch (err: any) {
