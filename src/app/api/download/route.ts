@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     }
 
     // Create a dedicated folder for this track: public/downloads/[cleanFolderTitle]/
-    const trackDir = path.join(downloadsDir, cleanFolderTitle);
+    const trackDir = path.join(/*turbopackIgnore: true*/ downloadsDir, cleanFolderTitle);
     if (!fs.existsSync(trackDir)) {
       fs.mkdirSync(trackDir, { recursive: true });
     }
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     let hasThumb = false;
     if (thumbnail && typeof thumbnail === "string" && thumbnail.startsWith("http")) {
       try {
-        const thumbFilePath = path.join(trackDir, "cover.jpg");
+        const thumbFilePath = path.join(/*turbopackIgnore: true*/ trackDir, "cover.jpg");
         const thumbRes = await fetch(thumbnail);
         if (thumbRes.ok) {
           const arrayBuf = await thumbRes.arrayBuffer();
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     // Use fixed output template 'audio.%(ext)s' to prevent yt-dlp percent % template parsing errors
-    const outputTemplate = path.join(trackDir, "audio.%(ext)s");
+    const outputTemplate = path.join(/*turbopackIgnore: true*/ trackDir, "audio.%(ext)s");
 
     let downloadError: any = null;
     try {
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     );
 
     if (actualAudioFile) {
-      const actualAudioPath = path.join(trackDir, actualAudioFile);
+      const actualAudioPath = path.join(/*turbopackIgnore: true*/ trackDir, actualAudioFile);
       const fileStat = fs.statSync(actualAudioPath);
 
       if (fileStat.size > 0) {

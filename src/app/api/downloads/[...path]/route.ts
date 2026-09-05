@@ -15,7 +15,7 @@ export async function GET(
     }
 
     const downloadsDir = getDownloadsDir();
-    const targetFilePath = path.join(downloadsDir, ...pathSegments);
+    const targetFilePath = path.join(/*turbopackIgnore: true*/ downloadsDir, ...pathSegments);
 
     // Check primary downloads dir
     let fileExists = fs.existsSync(targetFilePath) && fs.statSync(targetFilePath).isFile();
@@ -23,8 +23,8 @@ export async function GET(
 
     // Fallback checks
     if (!fileExists) {
-      const publicPath = path.join(process.cwd(), "public", "downloads", ...pathSegments);
-      const tmpPath = path.join("/tmp", "downloads", ...pathSegments);
+      const publicPath = path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "downloads", ...pathSegments);
+      const tmpPath = path.join(/*turbopackIgnore: true*/ "/tmp", "downloads", ...pathSegments);
       if (fs.existsSync(publicPath) && fs.statSync(publicPath).isFile()) {
         finalPath = publicPath;
         fileExists = true;

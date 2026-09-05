@@ -29,7 +29,7 @@ export async function GET() {
       const entryName = entries[idx];
       if (entryName.startsWith(".")) continue;
 
-      const entryPath = path.join(downloadsDir, entryName);
+      const entryPath = path.join(/*turbopackIgnore: true*/ downloadsDir, entryName);
       const stat = fs.statSync(entryPath);
 
       if (stat.isDirectory()) {
@@ -46,7 +46,7 @@ export async function GET() {
         );
 
         if (audioFile) {
-          const audioPath = path.join(entryPath, audioFile);
+          const audioPath = path.join(/*turbopackIgnore: true*/ entryPath, audioFile);
           const audioStat = fs.statSync(audioPath);
           const sizeMB = (audioStat.size / (1024 * 1024)).toFixed(1) + " MB";
           const ext = path.extname(audioFile).slice(1);
@@ -131,7 +131,7 @@ export async function DELETE(request: Request) {
     }
 
     const downloadsDir = getDownloadsDir();
-    const targetPath = path.join(downloadsDir, fileName);
+    const targetPath = path.join(/*turbopackIgnore: true*/ downloadsDir, fileName);
 
     if (fs.existsSync(targetPath)) {
       const stat = fs.statSync(targetPath);
