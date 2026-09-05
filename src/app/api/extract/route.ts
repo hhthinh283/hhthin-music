@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import { execFile } from "child_process";
-import path from "path";
-import { promisify } from "util";
-
-const execFileAsync = promisify(execFile);
+import { execFileAsync, getYtDlpPath } from "@/lib/ytDlp";
 
 export interface DownloadOption {
   id: string;
@@ -107,7 +103,7 @@ export async function POST(request: Request) {
       platformName = "TikTok Sound";
     }
 
-    const ytDlpPath = path.join(process.cwd(), "bin", "yt-dlp.exe");
+    const ytDlpPath = await getYtDlpPath();
 
     let title = "";
     let artist = "";

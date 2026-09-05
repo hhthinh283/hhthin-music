@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
-import path from "path";
+import { getYtDlpPath } from "@/lib/ytDlp";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,9 +10,8 @@ export async function GET(request: Request) {
     return new NextResponse("Missing URL parameter", { status: 400 });
   }
 
-  const ytDlpPath = path.join(process.cwd(), "bin", "yt-dlp.exe");
-
   try {
+    const ytDlpPath = await getYtDlpPath();
     const child = spawn(ytDlpPath, [
       "-o",
       "-",

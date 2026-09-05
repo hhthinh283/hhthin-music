@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getDownloadsDir } from "@/lib/ytDlp";
 
 export interface LibraryTrack {
   id: string;
@@ -15,7 +16,7 @@ export interface LibraryTrack {
 
 export async function GET() {
   try {
-    const downloadsDir = path.join(process.cwd(), "public", "downloads");
+    const downloadsDir = getDownloadsDir();
 
     if (!fs.existsSync(downloadsDir)) {
       return NextResponse.json({ success: true, tracks: [] });
@@ -129,7 +130,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: "Thiếu tên file hoặc thư mục." }, { status: 400 });
     }
 
-    const downloadsDir = path.join(process.cwd(), "public", "downloads");
+    const downloadsDir = getDownloadsDir();
     const targetPath = path.join(downloadsDir, fileName);
 
     if (fs.existsSync(targetPath)) {

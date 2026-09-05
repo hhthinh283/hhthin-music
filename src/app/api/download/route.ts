@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { execFile } from "child_process";
 import path from "path";
 import fs from "fs";
-import { promisify } from "util";
-
-const execFileAsync = promisify(execFile);
+import { execFileAsync, getYtDlpPath, getDownloadsDir } from "@/lib/ytDlp";
 
 export async function POST(request: Request) {
   try {
@@ -18,12 +15,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const ytDlpPath = path.join(process.cwd(), "bin", "yt-dlp.exe");
-    const downloadsDir = path.join(process.cwd(), "public", "downloads");
-
-    if (!fs.existsSync(downloadsDir)) {
-      fs.mkdirSync(downloadsDir, { recursive: true });
-    }
+    const ytDlpPath = await getYtDlpPath();
+    const downloadsDir = getDownloadsDir();
 
     const rawTitle = title || "Audio_Track";
     // Preserve full Vietnamese & Unicode characters, strip illegal OS filename characters (\ / : * ? " < > |)
